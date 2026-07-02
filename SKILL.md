@@ -14,6 +14,7 @@ description: >-
   my resume". Optimizes real signals and honest framing only; it never
   fabricates experience, contributions, or metrics.
 license: MIT
+compatibility: Requires Python 3.8+ and internet access to the GitHub REST API. A GITHUB_TOKEN env var is optional but raises the rate limit from 60/hr to 5000/hr.
 ---
 
 # Beating Resume Screeners
@@ -100,8 +101,16 @@ python scripts/github_enrich.py <github-username-or-url>
 
 Set `GITHUB_TOKEN` to raise the API limit from 60/hr to 5000/hr. Output is JSON
 with per-repo `project_type`, the candidate's commit count, and
-`open_source_cap_triggered` (true when every repo is `self_project`, which caps
-open_source at ~10/35).
+`open_source_cap_triggered` (true when every owned repo is `self_project`,
+which caps open_source at ~10/35).
+
+Critically, the script also reports `external_merged_pr_count` and
+`external_merged_prs`: merged PRs the candidate made to OTHER people's repos.
+This is the strongest open_source signal in the rubric, and the screener's
+owned-repo scan does not see it. When `hidden_open_source_signal` is true, the
+candidate is being under-scored: the fix is to LIST those PRs on the resume
+(with repo name and star count) so the agent credits them, not to accept the
+cap.
 
 ### Step 3: Score against the rubric
 

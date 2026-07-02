@@ -122,3 +122,18 @@ From `github.py` and `github_project_selection.jinja`:
   and high commit counts.
 - The agent fetches up to 100 repos sorted by stars, so unpinned toy repos are
   still seen and can trigger deductions.
+
+## The screener's blind spot (biggest opportunity)
+
+The agent classifies open_source from the candidate's OWNED repos only. It does
+not scan pull requests the candidate made to OTHER people's repositories. Yet a
+merged PR to a popular repo is the single highest-scoring open_source signal in
+the rubric (25-35 points).
+
+Consequence: a candidate whose owned repos are all `self_project` can still have
+many merged PRs to popular projects and be badly under-scored. The fix is not to
+change GitHub; it is to LIST those merged PRs on the resume text (repo name,
+star count, and what the PR did), because the agent scores what the resume
+states plus the owned-repo scan. `scripts/github_enrich.py` reports these as
+`external_merged_prs` so they can be surfaced.
+

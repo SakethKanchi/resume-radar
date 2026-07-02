@@ -69,6 +69,33 @@ def _get(url, token, params=None):
         return 0, {"error": "invalid_json"}
 
 
+def find_external_merged_prs(username, token=None, max_prs=30):
+    """Find merged PRs the candidate made to OTHER people's repos.
+
+    This is the single strongest open_source signal in the rubric, and it is
+    exactly what hiring-agent's owned-repo scan MISSES. A candidate can have
+    zero multi-contributor owned repos yet many merged PRs to popular projects.
+    Surfacing these tells the candidate what to put on the resume so the agent
+    credits it. Uses the GitHub search API.
+    """
+    status, data = _get(f"{API}/search/issues", token,
+                        {"q": f"type:pr+author:{username}+is:merged", "per_page": max_prs})
+    if status != 200 or not isinstance(data, dict):
+        return {"error": f"pr search returned {status}", "external_merged_prs": []}
+    external = []
+    for item in data.get("items", []):
+        url = item.get("html_url", "")
+        # A PR is "external" if the owning repo is not the candidate's own.
+        if f"/{username}/".lower() in url.lower():
+            continue
+        repo_full = "/".join(url.split("/")[3:5]) if url.count("/") >= 4 else url
+        external.append({"repo": repo_full, "title": item.get("title"), "url": url})
+    return {
+        "external_merged_pr_count": len(external),
+        "external_merged_prs": external[:max_prs],
+    }
+
+
 def enrich(username_or_url, token=None):
     username = extract_username(username_or_url)
     if not username:
@@ -119,6 +146,8 @@ def enrich(username_or_url, token=None):
         time.sleep(0.05)
 
     all_self = open_source == 0 and self_project > 0
+    prs = find_external_merged_prs(username, token)
+    ext_pr_count = prs.get("external_merged_pr_count", 0)
     return {
         "username": username,
         "public_repos": profile.get("public_repos"),
@@ -129,7 +158,14 @@ def enrich(username_or_url, token=None):
         "self_project_repos": self_project,
         "eligible_top_projects": eligible,
         "all_repos_are_self_project": all_self,
+        # The agent would cap open_source at ~10 based on owned repos alone.
+        # But merged PRs to external repos are the strongest open_source signal
+        # and are NOT visible in the owned-repo scan. If they exist, the fix is
+        # to LIST them on the resume, not to accept the cap.
         "open_source_cap_triggered": all_self,
+        "external_merged_pr_count": ext_pr_count,
+        "external_merged_prs": prs.get("external_merged_prs", []),
+        "hidden_open_source_signal": all_self and ext_pr_count > 0,
         "rate_limited": rate_limited,
         "repos": inspected,
     }
@@ -146,11 +182,18 @@ def main():
         sys.exit(1)
     result = enrich(args[0], token)
     print(json.dumps(result, indent=2))
-    if result.get("open_source_cap_triggered"):
-        print("\nNOTE: every inspected repo is single-contributor (self_project).",
-              file=sys.stderr)
-        print("The rubric caps open_source at ~10/35 in this case. See references/RUBRIC.md.",
-              file=sys.stderr)
+    if result.get("hidden_open_source_signal"):
+        n = result["external_merged_pr_count"]
+        print(f"\nOPPORTUNITY: owned repos are all self_project (agent would cap "
+              f"open_source at ~10), BUT you have {n} merged PR(s) to OTHER "
+              "people's repos. That is the strongest open_source signal in the "
+              "rubric and the agent misses it. LIST these PRs on the resume so "
+              "it gets credited. See external_merged_prs above.", file=sys.stderr)
+    elif result.get("open_source_cap_triggered"):
+        print("\nNOTE: every inspected repo is single-contributor (self_project) "
+              "and no external merged PRs were found. The rubric caps open_source "
+              "at ~10/35. Highest-leverage fix: land one merged PR to a popular "
+              "(1000+ star) repo. See references/RUBRIC.md.", file=sys.stderr)
 
 
 if __name__ == "__main__":

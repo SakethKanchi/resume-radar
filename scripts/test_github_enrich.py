@@ -50,6 +50,15 @@ def test_eligibility_threshold():
     assert eligible(4) is True
 
 
+def test_external_pr_detection():
+    # A PR is "external" (real open_source signal) if its repo owner is not the
+    # candidate. This mirrors the filter in find_external_merged_prs.
+    def is_external(url, user):
+        return f"/{user}/".lower() not in url.lower()
+    assert is_external("https://github.com/catppuccin/youtube/pull/3", "SakethKanchi") is True
+    assert is_external("https://github.com/SakethKanchi/parley/pull/1", "SakethKanchi") is False
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:
