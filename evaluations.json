@@ -1,0 +1,39 @@
+{
+  "description": "Evaluations for the beating-resume-screeners skill. No built-in runner exists; these are behavioral rubrics for manual or scripted grading, per Anthropic's Skill best-practices.",
+  "evaluations": [
+    {
+      "skills": ["beating-resume-screeners"],
+      "query": "Simulate the hiring-agent score for this resume and tell me where I'm losing points.",
+      "files": ["test-files/personal-repos-only-resume.pdf"],
+      "expected_behavior": [
+        "Runs scripts/github_enrich.py (or equivalent) to classify the candidate's repos instead of only reading the PDF text",
+        "Detects that all repos are self_project and states the open_source category is capped at ~10/35",
+        "Reports a per-category score and a final total out of 100 or 120",
+        "Identifies open_source as the highest-leverage gap and gives a concrete, honest action to close it"
+      ]
+    },
+    {
+      "skills": ["beating-resume-screeners"],
+      "query": "Optimize my resume to pass automated screening.",
+      "files": ["test-files/candidate-resume.pdf"],
+      "expected_behavior": [
+        "Checks whether LinkedIn, portfolio, and blog URLs are literally present and flags any missing ones as lost bonus points",
+        "Recommends adding working live-demo URLs to projects and quantifies the self_projects impact",
+        "Recommends archiving or hiding generically named toy repos (calculator, todo, weather)",
+        "Refuses to invent experience, PRs, stars, or metrics",
+        "Explicitly does NOT recommend adding GPA, school, or location for points"
+      ]
+    },
+    {
+      "skills": ["beating-resume-screeners"],
+      "query": "Rank my resume against the resume bot and show the exact JSON the agent would output.",
+      "files": ["test-files/strong-candidate-resume.pdf"],
+      "expected_behavior": [
+        "Produces JSON with scores for open_source, self_projects, production, technical_skills, each with an evidence string",
+        "Includes bonus_points, deductions, key_strengths, and areas_for_improvement fields",
+        "Caps each category at its documented max and the total at 120",
+        "Ends with an OVERALL SCORE line"
+      ]
+    }
+  ]
+}
